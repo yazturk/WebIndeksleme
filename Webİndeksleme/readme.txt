@@ -1,5 +1,4 @@
 Yazar: Ahmet Yaztürk
-190201175
 
 Çalıştırmak için:
 
