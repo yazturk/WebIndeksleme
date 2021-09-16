@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+         <meta charset="UTF-8">
+	{% load static %}
+	<title>Web İndeksleme Uygulaması</title>
+	<link rel="stylesheet" href="{% static "style.css" %}">
+
+</head>
+<body>	<header>
+	{% for key, value in sayfalar.items %}
+	    {% if key == name %}	  
+	    <h1>{{value}}</h1>
+	    {% endif %}
+	{% endfor %}
+	</header>
+	<nav>
+	{% for key, value in sayfalar.items %}
+	    {% if key == "anasayfa" %}
+	      <a href="/">Anasayfa</a>
+	    {% else %}
+		<a href="/{{key}}" >{{value}}</a>
+	    {% endif %}
+	{% endfor %}
+	</nav> 
+	<div class="container">
+	{{ content|safe }}
+	</div>
+	<footer>Hazırlayan: Ahmet Yaztürk<br>
+	Kocaeli Üniversitesi, Mart 2021</footer>
+</body>
+</html>

@@ -1,0 +1,41 @@
+
+
+h1 {
+  color: #373fff;
+  background-color: #F4F6B8;
+  padding: 5px;
+
+}
+
+div.container {
+	background-color:#ddd;
+}
+div.container::after {
+	content: "";
+	display: table;
+	clear: both;
+}
+nav a {
+  display: inline-block;
+  background-color: #cdf;
+  color: black;
+  padding: 15px;
+  margin: 10px;
+  text-decoration: none;
+  border-style: solid;
+  border-radius: 10px;
+  border-width: 1px;
+  border-color: #cdf;
+}
+
+nav a:hover {
+  background-color: #9bc;
+  border-color: #9bc;
+}
+
+footer {
+  color: #444444;
+  margin-top: 50px;
+  padding-top: 25px;
+  border-top: 1px solid lightgrey;
+}

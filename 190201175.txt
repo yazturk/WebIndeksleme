@@ -1,0 +1,329 @@
+# views.py
+from django.shortcuts import render
+from django.http import HttpResponseRedirect
+from .forms import URLForm
+from . import *
+from . import asama1,asama2,asama3,asama4
+
+# Create your views here.
+
+
+def anasayfa(request):
+    return render(request, "sablon.html", {"sayfalar": sayfalar, "name": "anasayfa"})
+
+def frekans(request):
+    content = tekURL 
+    return render(request, "form.html", {"sayfalar": sayfalar, "name": "frekans", "targeturl": "/frekans/sonuclar", "content": content})
+
+def anahtar(request):
+    content = tekURL 
+    return render(request, "form.html", {"sayfalar": sayfalar, "name": "anahtar", "targeturl": "/anahtar/sonuclar", "content": content})
+
+def benzerlik(request):
+    content = ikiURL
+    return render(request, "form.html", {"sayfalar": sayfalar, "name": "benzerlik", "targeturl": "benzerlik/sonuclar", "content": content})
+
+
+def indeksleme(request):
+    content = cokURL  
+    return render(request, "form.html", {"sayfalar": sayfalar, "name": "indeksleme", "targeturl": "/indeksleme/sonuclar", "content": content})
+
+
+def semantik(request):
+    content = cokURL 
+    return render(request, "form.html", {"sayfalar": sayfalar, "name": "semantik", "targeturl": "/semantik/sonuclar", "content": content})
+
+
+def frekans_s(request):
+    sonuc = asama1.hesapla(request.POST["url1"])
+    content = "<h2>Kelimelerin Frekansları:</h2><ul>"
+    for (kelime,freq) in sonuc:
+        content += "<li> " + kelime + ": " + freq.__str__() + "</li>"
+    content += "</ul>"
+    return render(request, "sonuc.html", {"sayfalar": sayfalar, "name": "frekans", "content": content})
+
+
+def anahtar_s(request):
+    sonuc = asama2.hesapla(request.POST["url1"])[:10]
+    content = "<h2>Anahtar kelimeler:</h2><ul>"
+    for (kelime,freq) in sonuc:
+        content += "<li> " + kelime + ": " + freq.__str__() + "</li>"
+    content += "</ul>"
+    return render(request, "sonuc.html", {"sayfalar": sayfalar, "name": "anahtar", "content": content})
+
+
+def benzerlik_s(request):
+    url1 = asama2.hesapla(request.POST["url1"])
+    url2 = asama2.hesapla(request.POST["url2"])
+    sonuc = asama3.hesapla(url1, url2)
+    content = "<h2>Benzerlik puanı: " + str(sonuc) + "</h2>"
+    content += "<div style='float:left; width: 50%;'><h2>1. URL kelime frekansları</h2><ul>"
+    for (kelime,freq) in url1:
+        content += "<li> " + kelime + ": " + freq.__str__() + "</li>"
+    content += "</ul></div><div style='float:left; width: 50%;'><h2>2. URL kelime frekansları</h2><ul>"
+    for (kelime,freq) in url2:
+        content += "<li> " + kelime + ": " + freq.__str__() + "</li>"
+    content += "</ul></div>"
+    return render(request, "sonuc.html", {"sayfalar": sayfalar, "name": "benzerlik", "content": content})
+
+
+def indeksleme_s(request):
+    url1 = request.POST["url1"]
+    url1kws = asama2.hesapla(url1)[:10]
+    urls = []
+    for url in request.POST["urls"].split():
+        urls.append(url)
+    (sonuclar, siraliliste) = asama4.hesapla(url1, urls)
+    content = "<h2>Ana URL için anahtar kelimeler</h2>"
+    content += "<i>" + url1 + "</i>"
+    for (kelime,freq) in url1kws:
+        content += "<li> " + kelime + ": " + freq.__str__() + "</li>"
+    content += "</ul>"
+    content += "<h2>Benzerlik puanına göre sayfalar:</h2>"
+    content += agac_yazdir(sonuclar,siraliliste)
+    return render(request, "sonuc.html", {"sayfalar": sayfalar, "name": "indeksleme", "content": content})
+
+def agac_yazdir(agac, liste):
+        sonuc = "<ul>"
+        for (url, puan, agac2) in agac:
+                sira = asama4.sirabul(url, liste)
+                kws = asama2.hesapla(url)[:10]
+                sonuc += "<li><b>" + str(sira) + ".</b> " + url +": <b>" + str(puan) + "</b><br>("
+                for (kw,freq) in kws:
+                        sonuc += "<i>" + kw + "</i>:" + str(freq) + " "
+                sonuc += ")</li>"
+                sonuc += agac_yazdir(agac2, liste)
+        sonuc += "</ul>"
+        return sonuc
+
+def semantik_s(request):
+    sonuc = asama1.hesapla(request.POST["url1"])
+    content = "<h2>Kelimelerin Frekansları:</h2><ul>"
+    for (kelime,freq) in sonuc:
+        content += "<li> " + kelime + ": " + freq.__str__() + "</li>"
+    content += "</ul>"
+    return render(request, "sonuc.html", {"sayfalar": sayfalar, "name": "frekans", "content": content})
+
+#parse.py
+import requests
+from urllib.parse import urljoin
+from bs4 import BeautifulSoup
+from collections import Counter
+from . import stopwords
+
+symbols = '!@#$%^&*()_-+={[}]|\;:"<>?/., '
+
+def to_stringlist(url):
+   source_code = requests.get(url).text
+   soup = BeautifulSoup(source_code, 'html.parser')
+   while soup.style:
+        soup.style.extract()
+   while soup.script:
+        soup.script.extract()
+   strings = [s for s in soup.strings]
+   stringlist = []
+   for s in strings:
+        for symbol in symbols:
+                s = s.replace(symbol, ' ')
+        stringlist.append(s)
+   return stringlist
+
+def to_wordlist(url, remove_stopwords=False):
+        wordlist = []
+        strs = to_stringlist(url)
+        for s in strs:
+                words = s.lower().split()
+                for w in words:
+                        if (not remove_stopwords) or (not w in stopwords.english):
+                                        wordlist.append(w)
+        c = Counter(wordlist)
+        return c.most_common()
+
+def recursive_wordlist(url,derinlik):
+   try:
+        source_code = requests.get(url).text
+        soup = BeautifulSoup(source_code, 'html.parser')
+   except:
+        return (url, [], [])
+   else:
+        while soup.style:
+                soup.style.extract()
+        while soup.script:
+                soup.script.extract()
+        suburlresults = []
+        if derinlik > 1:
+                for a in soup.find_all('a'):
+                        newurl = a.get('href')
+                        if newurl:
+                                newurl = urljoin(url, newurl)
+                                if newurl.startswith('http'):
+                                    newres = recursive_wordlist(newurl,derinlik-1)
+                                    suburlresults.append(newres)
+        strings = [s for s in soup.strings]
+        stringlist = []
+        wordlist = []
+        for s in strings:
+                for symbol in symbols:
+                        s = s.replace(symbol, ' ')
+                stringlist.append(s)
+                words = s.lower().split()
+                for w in words:
+                        if not w in stopwords.english:
+                                wordlist.append(w)
+        c = Counter(wordlist)
+        return (url, c.most_common(), suburlresults)
+#__init__.py
+
+sayfalar = {
+        "anasayfa": "Web İndeksleme Uygulaması",
+        "frekans": "Frekans Hesaplama",
+        "anahtar": "Anahtar Kelime Çıkarma",
+        "benzerlik": "Benzerlik Skorlama",
+        "indeksleme": "Site İndeksleme ve Sıralama",
+        "semantik": "Semantik Analiz"
+        }
+
+tekURL = """
+        <label>URL: </label><br><br>
+        <input type='url' id='url1' name='url1' ><br><br>
+        <input type='submit' value='Gönder'> """
+
+ikiURL = """
+        <label>URL: </label><br><br>
+        <input type='url' id='url1' name='url1'><br><br>
+        <input type='url' id='url2' name='url2'><br><br>
+        <input type='submit' value='Gönder'> """
+
+cokURL = """
+        <label>URL: </label><br><br>
+        <input type='url' id='url1' name='url1' ><br><br>
+        <textarea id='urls' name='urls' rows="15" cols="120"></textarea><br><br>
+        <input type='submit' value='Gönder'>"""
+
+#asama1.py
+from . import parse
+
+def hesapla(url):
+    return parse.to_wordlist(url,remove_stopwords=True)
+
+#asama2.py
+from . import parse, stopwords
+
+def hesapla(url):
+        stringlist = parse.to_stringlist(url)
+        points = {}
+        for string in stringlist:
+                words = string.lower().split()
+                frequencies = {}
+                total = 0
+                for word in words:
+                        if not word in stopwords.english and not word[0].isdigit():
+                                total += 1
+                                increase(frequencies, word, 1)
+                update(points, frequencies, total)
+        p = list(points.items()) #sıralamak için listeye çevir
+        p.sort(reverse=True, key=sort_f)
+        return p
+
+def increase(dictionary, key, point):
+        if key in dictionary.keys():
+                dictionary[key] += point
+        else:
+                dictionary[key] = point
+
+def update(points, freqs, total):
+        for word in freqs.keys():
+                point = freqs[word] * freqs[word]
+                increase(points, word, point)
+                
+def sort_f(pair):
+        (key, value) = pair
+        return value
+    
+#asama3.py
+from . import parse, stopwords
+
+def hesapla(url):
+        stringlist = parse.to_stringlist(url)
+        points = {}
+        for string in stringlist:
+                words = string.lower().split()
+                frequencies = {}
+                total = 0
+                for word in words:
+                        if not word in stopwords.english and not word[0].isdigit():
+                                total += 1
+                                increase(frequencies, word, 1)
+                update(points, frequencies, total)
+        p = list(points.items()) #sıralamak için listeye çevir
+        p.sort(reverse=True, key=sort_f)
+        return p
+
+def increase(dictionary, key, point):
+        if key in dictionary.keys():
+                dictionary[key] += point
+        else:
+                dictionary[key] = point
+
+def update(points, freqs, total):
+        for word in freqs.keys():
+                point = freqs[word] * freqs[word]
+                increase(points, word, point)
+                
+def sort_f(pair):
+        (key, value) = pair
+        return value
+        
+#asama4.py
+from . import parse
+from . import asama3, asama1
+
+def hesapla(url1, urls):
+        list1 = parse.to_wordlist(url1)
+        sonuclar = []
+        for url in urls:
+                tree = parse.recursive_wordlist(url,2)
+                sonuc = recursive_scoring(list1,tree)
+                sonuclar.append(sonuc)
+        siralisonuc = concat(sonuclar)
+        siralisonuc.sort(reverse=True, key=sort_f)
+        return (sonuclar, siralisonuc)
+
+def concat(tree):
+        dizi = []
+        for (url, puan, rest) in tree:
+                dizi.append((url,puan))
+                dizi.extend(concat(rest))
+        return dizi
+
+def sirabul(url,siraliliste):
+        sira=1
+        for (url2,puan) in siraliliste:
+                if url==url2:
+                        return sira
+                else:
+                        sira+=1
+        return 0 
+
+def sort_f(pair):
+        (key,value) = pair
+        return value
+
+def recursive_scoring(list1, tree2):
+        (url2, list2, subs2) = tree2
+        anapuan = asama3.hesapla(list1,list2)
+        sonuclar = []
+        for sub in subs2:
+                sonuc = recursive_scoring(list1, sub)
+                sonuclar.append(sonuc)
+        sayac = 0
+        toplam = 0
+        for (url, puan, rest) in sonuclar:
+                sayac += 1
+                toplam += puan
+        if sayac == 0:
+                sonpuan = anapuan
+        else:
+                sonpuan = (anapuan*(5 + sayac/2) + toplam)/(5+(3*sayac)/2)
+        return (url2, sonpuan, sonuclar)
+        
